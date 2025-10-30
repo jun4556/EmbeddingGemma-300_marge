@@ -1,0 +1,43 @@
+{
+    "servers": {
+        "github": {
+            "type": "http",
+            "url": "https://api.githubcopilot.com/mcp/",
+            "gallery": true
+        },
+        "mcp-feedback-enhanced": {
+            "type": "stdio",
+            "command": "uvx",
+            "args": [
+                "mcp-feedback-enhanced@latest"
+            ],
+            "timeout": 600000,
+            "env": {
+                "MCP_DESKTOP_MODE": "false",
+                "MCP_WEB_HOST": "localhost",
+                "MCP_WEB_PORT": "8765",
+                "MCP_LANGUAGE": "en",
+                "FORCE_WEB": "true"
+            },
+            "autoApprove": [
+                "interactive_feedback"
+            ]
+        },
+        "chrome-devtools": {
+            "command": "npx",
+            "args": [
+                "chrome-devtools-mcp@latest"
+            ]
+        },
+        "serena": {
+            "command": "uvx",
+            "args": [
+                "--from",
+                "git+https://github.com/oraios/serena",
+                "serena",
+                "start-mcp-server"
+            ]
+        }
+    },
+    "inputs": []
+}

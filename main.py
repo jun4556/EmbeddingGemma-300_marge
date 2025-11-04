@@ -76,9 +76,9 @@ def calculate_spatial_similarity_advanced(cls_a, data_a, cls_b, data_b):
     symmetric_score = (score_ab + score_ba) / 2.0
     return symmetric_score
 
-def find_best_matches(data_a, data_b, calculator, threshold=0.6, weights=None):
+def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
     if weights is None:
-        weights = {"semantic": 0.7, "relational": 0.0, "structural": 0.15, "spatial": 0.15}
+        weights = {"semantic": 1.0, "relational": 0.0, "structural": 0.0, "spatial": 0.0}
     classes_a, classes_b = list(data_a["classes"]), list(data_b["classes"])
     all_scores = []
     for cls_a in classes_a:

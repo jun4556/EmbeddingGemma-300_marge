@@ -14,17 +14,64 @@ def get_relations_for_class(class_id, relations):
             related["target"].append(rel)
     return related
 
-def calculate_structural_similarity(cls_a, cls_b, data_a, data_b):
-    relations_a = get_relations_for_class(cls_a.id, data_a["relations"])
-    relations_b = get_relations_for_class(cls_b.id, data_b["relations"])
-    source_count_a = len(relations_a["source"])
-    source_count_b = len(relations_b["source"])
-    target_count_a = len(relations_a["target"])
-    target_count_b = len(relations_b["target"])
-    source_diff = abs(source_count_a - source_count_b) / max(1, source_count_a + source_count_b)
-    target_diff = abs(target_count_a - target_count_b) / max(1, target_count_a + target_count_b)
-    similarity = 1.0 - (source_diff + target_diff) / 2
-    return similarity
+# def calculate_structural_similarity(cls_a, cls_b, data_a, data_b):
+#     relations_a = get_relations_for_class(cls_a.id, data_a["relations"])
+#     relations_b = get_relations_for_class(cls_b.id, data_b["relations"])
+#     source_count_a = len(relations_a["source"])
+#     source_count_b = len(relations_b["source"])
+#     target_count_a = len(relations_a["target"])
+#     target_count_b = len(relations_b["target"])
+#     source_diff = abs(source_count_a - source_count_b) / max(1, source_count_a + source_count_b)
+#     target_diff = abs(target_count_a - target_count_b) / max(1, target_count_a + target_count_b)
+#     similarity = 1.0 - (source_diff + target_diff) / 2
+#     return similarity
+
+# main.py (L.20 - L.30 を以下のコードで置き換え)
+
+def calculate_structural_similarity(cls_a, cls_b, data_a, data_b, calculator):
+    """
+    関連先のクラス名と属性に基づいて構造的類似度を計算する（AI使用）
+    """
+    
+    # ヘルパー関数: 指定されたクラスの関連先クラスのテキスト表現セットを取得
+    def get_neighbor_texts(cls, data):
+        relations = get_relations_for_class(cls.id, data["relations"])
+        class_map = {c.id: c for c in data["classes"]}
+        neighbor_texts = []
+        
+        # 出ていく関連（source）の関連先（target）
+        for rel in relations["source"]:
+            neighbor = class_map.get(rel.target_id)
+            if neighbor:
+                neighbor_texts.append(f"{neighbor.name} {' '.join(neighbor.attributes)}")
+                
+        # 入ってくる関連（target）の関連元（source）
+        for rel in relations["target"]:
+            neighbor = class_map.get(rel.source_id)
+            if neighbor:
+                neighbor_texts.append(f"{neighbor.name} {' '.join(neighbor.attributes)}")
+        
+        # 重複を除去し、順序を固定するためソート
+        return sorted(list(set(neighbor_texts)))
+
+    # A と B それぞれの関連先テキストリストを取得
+    neighbors_a_texts = get_neighbor_texts(cls_a, data_a)
+    neighbors_b_texts = get_neighbor_texts(cls_b, data_b)
+
+    # テキストリストを結合して一つの文字列にする
+    text_a_neighbors = " ".join(neighbors_a_texts)
+    text_b_neighbors = " ".join(neighbors_b_texts)
+
+    # 両方に関連先がない場合は類似度1.0 (構造的に同じ)
+    if not text_a_neighbors and not text_b_neighbors:
+        return 1.0
+    
+    # どちらか一方しか関連先がない場合は類似度0.0 (構造的に異なる)
+    if not text_a_neighbors or not text_b_neighbors:
+        return 0.0
+
+    # AIモデルで関連先テキスト全体の類似度を計算
+    return calculator.get_similarity(text_a_neighbors, text_b_neighbors)
 
 def get_spatial_signature(cls, diagram_data):
     signature = []
@@ -78,7 +125,10 @@ def calculate_spatial_similarity_advanced(cls_a, data_a, cls_b, data_b):
 
 def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
     if weights is None:
-        weights = {"semantic": 1.0, "relational": 0.0, "structural": 0.0, "spatial": 0.0}
+# ▼▼▼ 修正箇所 1/2 (structural の重みを 1.0 に変更) ▼▼▼
+        # これにより、クラス自体の意味(semantic)と、関連先の意味(structural)の両方が考慮されます
+        weights = {"semantic": 1.0, "relational": 0.0, "structural": 1.0, "spatial": 0.0}
+        # ▲▲▲ 修正箇所 1/2 ▲▲▲
     classes_a, classes_b = list(data_a["classes"]), list(data_b["classes"])
     all_scores = []
     for cls_a in classes_a:
@@ -86,7 +136,7 @@ def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
             text_a = f"{cls_a.name} {' '.join(cls_a.attributes)}"
             text_b = f"{cls_b.name} {' '.join(cls_b.attributes)}"
             semantic_score = calculator.get_similarity(text_a, text_b)
-            structural_score = calculate_structural_similarity(cls_a, cls_b, data_a, data_b)
+            structural_score = calculate_structural_similarity(cls_a, cls_b, data_a, data_b, calculator)
             spatial_score = calculate_spatial_similarity_advanced(cls_a, data_a, cls_b, data_b)
             total_score = (semantic_score * weights["semantic"] +
                            structural_score * weights["structural"] +
@@ -100,10 +150,10 @@ def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
             matched_pairs.append(score_tuple)
             matched_a_ids.add(cls_a.id)
             matched_b_ids.add(cls_b.id)
-    for st in all_scores:
-        if st[5].name == st[6].name: add_match(st)
-    for st in all_scores:
-        if st[1] >= 0.95: add_match(st)
+    # for st in all_scores:
+    #     if st[5].name == st[6].name: add_match(st)
+    # for st in all_scores:
+    #     if st[1] >= 0.95: add_match(st)
     for st in all_scores:
         if st[0] >= threshold: add_match(st)
     unmatched_a = [cls for cls in classes_a if cls.id not in matched_a_ids]

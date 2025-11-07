@@ -211,11 +211,15 @@ def adjust_layout_with_repulsion(classes, k_repulsion=20000, iterations=100):
             cls_i.y += int(net_force_y / 10)
     return classes
 
+# main.py 内
+# (この関数は UmlClass, UmlRelation, merge_multiplicity, merge_attributes_with_ai への
+#  アクセスが前提となります)
+
 def merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator):
     merged_classes, id_map_a, id_map_b = [], {}, {}
     new_id_counter = 0
 
-    # 1. クラスのマージ
+    # 1. クラスのマージ (変更なし)
     for _, _, _, _, _, cls_a, cls_b in matches:
         merged_attrs = merge_attributes_with_ai(cls_a.attributes, cls_b.attributes, calculator)
         merged_name = cls_a.name if cls_a.name == cls_b.name else f"{cls_a.name}/{cls_b.name}"
@@ -225,15 +229,12 @@ def merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator
         merged_classes.append(new_class)
         id_map_a[cls_a.id], id_map_b[cls_b.id] = new_class.id, new_class.id
 
-    # マッチしなかったクラスを結合し、名前でソート (対称性の向上)
     all_unmatched = unmatched_a + unmatched_b
     all_unmatched.sort(key=lambda cls: cls.name) 
 
     for cls in all_unmatched:
-        # A由来かB由来かを判断
         is_from_a = any(cls is c for c in data_a['classes'])
         is_from_b = any(cls is c for c in data_b['classes'])
-
         origin_map = None
         if is_from_a and cls.id not in id_map_a:
             origin_map = id_map_a
@@ -241,7 +242,6 @@ def merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator
             origin_map = id_map_b
         else:
              continue
-
         if cls.id not in origin_map:
             new_class = UmlClass(str(new_id_counter), cls.name, cls.attributes, cls.x, cls.y)
             new_id_counter += 1
@@ -249,22 +249,15 @@ def merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator
             origin_map[cls.id] = new_class.id
 
     # 2. 関連のマージ
+    # ▼▼▼ スタイル情報を引き継ぐようにロジックを修正 ▼▼▼
+    
     potential_relations = {}
-    relation_priority = {'Composition': 4, 'Aggregation': 3, 'Generalization': 2, 'SimpleRelation': 1}
     all_relations = data_a["relations"] + data_b["relations"]
 
     for rel in all_relations:
-        # 関連の出自を判断
         is_from_a = any(rel is r for r in data_a['relations'])
         is_from_b = any(rel is r for r in data_b['relations'])
-
-        origin_map = None
-        if is_from_a:
-            origin_map = id_map_a
-        elif is_from_b:
-            origin_map = id_map_b
-        else:
-            continue
+        origin_map = id_map_a if is_from_a else id_map_b
 
         new_source_id = origin_map.get(rel.source_id)
         new_target_id = origin_map.get(rel.target_id)
@@ -273,15 +266,43 @@ def merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator
             continue
 
         rel_key = tuple(sorted((new_source_id, new_target_id)))
-        current_priority = relation_priority.get(rel.type, 0)
 
-        if rel_key not in potential_relations or current_priority > relation_priority.get(potential_relations[rel_key].type, 0):
-            potential_relations[rel_key] = UmlRelation("temp_id", new_source_id, new_target_id, rel.type, rel.source_multiplicity, rel.target_multiplicity)
-        elif current_priority == relation_priority.get(potential_relations[rel_key].type, 0):
+        if rel_key not in potential_relations:
+            # このクラスペアで初めて見つかった関連
+            # スタイル情報も含めて新しい UmlRelation オブジェクトとして保存
+            potential_relations[rel_key] = UmlRelation(
+                "temp_id", 
+                new_source_id, 
+                new_target_id, 
+                rel.type, 
+                rel.source_multiplicity, 
+                rel.target_multiplicity,
+                # スタイル情報をコピー
+                rel.line_style, 
+                rel.source_arrow, 
+                rel.target_arrow
+            )
+        else:
+            # 既にこのクラスペアに関連が存在する (競合または一致)
             existing_rel = potential_relations[rel_key]
+            
             if existing_rel.type == rel.type:
+                # 関連タイプが一致: 多重度のみマージ
+                # (スタイルも一致していると仮定し、既存のスタイル情報を維持)
                 existing_rel.source_multiplicity = merge_multiplicity(existing_rel.source_multiplicity, rel.source_multiplicity)
                 existing_rel.target_multiplicity = merge_multiplicity(existing_rel.target_multiplicity, rel.target_multiplicity)
+            else:
+                # 関連タイプが不一致: SimpleRelation に設定
+                existing_rel.type = 'SimpleRelation'
+                # 多重度をマージ
+                existing_rel.source_multiplicity = merge_multiplicity(existing_rel.source_multiplicity, rel.source_multiplicity)
+                existing_rel.target_multiplicity = merge_multiplicity(existing_rel.target_multiplicity, rel.target_multiplicity)
+                # スタイルをSimpleRelationのデフォルト（Solid, None, None）にリセット
+                existing_rel.line_style = 'Solid'
+                existing_rel.source_arrow = 'None'
+                existing_rel.target_arrow = 'None'
+    
+    # ▲▲▲ ロジック変更ここまで ▲▲▲
 
     # IDを再割り当て
     merged_relations = []

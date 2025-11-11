@@ -259,8 +259,8 @@ def merge_from_strings(data_a_str, data_b_str):
         print(f"Number of Matches: {len(matches)}")
         print(f"Number of Unmatched A: {len(unmatched_a)}")
         print(f"Number of Unmatched B: {len(unmatched_b)}")
-        print("Matches (Top 5):")
-        pprint.pprint([(f"{score:.4f}", repr(cls_a), repr(cls_b)) for score, _, _, _, _, cls_a, cls_b in matches[:5]])
+        print("All Matches:") # "Matches (Top 5):" から変更
+        pprint.pprint([(f"{score:.4f}", repr(cls_a), repr(cls_b)) for score, _, _, _, _, cls_a, cls_b in matches])
         print("---------------------------------------------------\n")
 
         merged_data = merge_uml_data(matches, unmatched_a, unmatched_b, data_a, data_b, calculator)

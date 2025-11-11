@@ -127,7 +127,7 @@ def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
     if weights is None:
 # ▼▼▼ 修正箇所 1/2 (structural の重みを 1.0 に変更) ▼▼▼
         # これにより、クラス自体の意味(semantic)と、関連先の意味(structural)の両方が考慮されます
-        weights = {"semantic": 1.0, "relational": 0.0, "structural": 1.0, "spatial": 0.0}
+        weights = {"semantic": 1.0, "relational": 0.0, "structural": 0.0, "spatial": 0.0}
         # ▲▲▲ 修正箇所 1/2 ▲▲▲
     classes_a, classes_b = list(data_a["classes"]), list(data_b["classes"])
     all_scores = []
@@ -150,16 +150,83 @@ def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
             matched_pairs.append(score_tuple)
             matched_a_ids.add(cls_a.id)
             matched_b_ids.add(cls_b.id)
+# ---------
     # for st in all_scores:
     #     if st[5].name == st[6].name: add_match(st)
     # for st in all_scores:
     #     if st[1] >= 0.95: add_match(st)
+# ---------
     for st in all_scores:
         if st[0] >= threshold: add_match(st)
     unmatched_a = [cls for cls in classes_a if cls.id not in matched_a_ids]
     unmatched_b = [cls for cls in classes_b if cls.id not in matched_b_ids]
     matched_pairs.sort(key=lambda x: x[0], reverse=True)
     return matched_pairs, unmatched_a, unmatched_b, all_scores
+
+# main.py の find_best_matches 関数を以下に置き換えてください
+#
+
+# def find_best_matches(data_a, data_b, calculator, threshold=0.85, weights=None): # 閾値を 0.85 に変更
+#     if weights is None:
+#         # weights は semantic のみ 1.0 に設定
+#         weights = {"semantic": 1.0, "relational": 0.0, "structural": 0.0, "spatial": 0.0}
+
+#     classes_a, classes_b = list(data_a["classes"]), list(data_b["classes"])
+#     all_scores = []
+
+#     for cls_a in classes_a:
+#         for cls_b in classes_b:
+#             text_a = f"{cls_a.name} {' '.join(cls_a.attributes)}"
+#             text_b = f"{cls_b.name} {' '.join(cls_b.attributes)}"
+
+#             semantic_score = calculator.get_similarity(text_a, text_b)
+
+#             # (calculator を渡す修正は適用済み)
+#             structural_score = calculate_structural_similarity(cls_a, cls_b, data_a, data_b, calculator)
+#             spatial_score = calculate_spatial_similarity_advanced(cls_a, data_a, cls_b, data_b)
+
+#             total_score = (semantic_score * weights["semantic"] +
+#                            structural_score * weights["structural"] +
+#                            spatial_score * weights["spatial"])
+
+#             all_scores.append((total_score, semantic_score, 0.0, structural_score, spatial_score, cls_a, cls_b))
+
+#     all_scores.sort(key=lambda x: x[0], reverse=True)
+
+#     matched_pairs, matched_a_ids, matched_b_ids = [], set(), set()
+
+#     def add_match(score_tuple):
+#         cls_a, cls_b = score_tuple[5], score_tuple[6]
+#         if cls_a.id not in matched_a_ids and cls_b.id not in matched_b_ids:
+#             matched_pairs.append(score_tuple)
+#             matched_a_ids.add(cls_a.id)
+#             matched_b_ids.add(cls_b.id)
+
+#     # ▼▼▼ ロジックを 3パス・フィルタリングに戻す ▼▼▼
+
+#     # Pass 1: クラス名が「完全一致」するものを最優先でマッチさせる
+#     for st in all_scores:
+#         if st[5].name == st[6].name:
+#             add_match(st)
+
+#     # Pass 2: セマンティックスコアが 0.95 以上のものをマッチさせる
+#     for st in all_scores:
+#         if st[1] >= 0.95: # st[1] は semantic_score
+#             add_match(st)
+
+#     # Pass 3: 閾値（0.85）以上のものをマッチさせる
+#     # (自動車 vs 乗り物 や エンジン vs 部品 を拾うため)
+#     for st in all_scores:
+#         if st[0] >= threshold: # st[0] は total_score (semantic_score と同じ)
+#             add_match(st)
+#     # ▲▲▲ 修正ここまで ▲▲▲
+
+#     unmatched_a = [cls for cls in classes_a if cls.id not in matched_a_ids]
+#     unmatched_b = [cls for cls in classes_b if cls.id not in matched_b_ids]
+
+#     matched_pairs.sort(key=lambda x: x[0], reverse=True)
+
+#     return matched_pairs, unmatched_a, unmatched_b, all_scores
 
 def merge_attributes_with_ai(attrs_a, attrs_b, calculator, perfect_match_threshold=0.98):
     merged_attrs, matched_b_indices = [], set()

@@ -26,8 +26,21 @@ class SimilarityCalculator:
         """
         if not self.model:
             return 0.0
-
-        embeddings = self.model.encode([text1, text2])
+        
+        # ▼▼▼ 修正箇所 ▼▼▼
+        # ドキュメント に基づき、タスクとして "STS" (Semantic Textual Similarity) を指定する
+        # これにより、「意味が似ている」ではなく「同義語か」を判断させる
+        try:
+            embeddings = self.model.encode(
+                [text1, text2],
+                prompt_name="STS"  # タスクを指定
+            )
+        except Exception as e:
+            # (HuggingFaceのライブラリが古い場合、prompt_name引数がない可能性があるため)
+            print(f"[Warning] prompt_name='STS' の使用に失敗しました。デフォルト動作に戻します。エラー: {e}")
+            embeddings = self.model.encode([text1, text2])
+        # ▲▲▲ 修正ここまで ▲▲▲
+        
         score = util.cos_sim(embeddings[0], embeddings[1])[0][0]
         
         return score.item()

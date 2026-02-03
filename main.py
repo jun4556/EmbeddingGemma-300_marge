@@ -123,7 +123,7 @@ def calculate_spatial_similarity_advanced(cls_a, data_a, cls_b, data_b):
     symmetric_score = (score_ab + score_ba) / 2.0
     return symmetric_score
 
-def find_best_matches(data_a, data_b, calculator, threshold=0.75, weights=None):
+def find_best_matches(data_a, data_b, calculator, threshold=0.80, weights=None):
     if weights is None:
 # ▼▼▼ 修正箇所 1/2 (structural の重みを 1.0 に変更) ▼▼▼
         # これにより、クラス自体の意味(semantic)と、関連先の意味(structural)の両方が考慮されます

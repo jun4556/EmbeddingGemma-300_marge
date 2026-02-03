@@ -243,7 +243,7 @@ def merge_from_strings(data_a_str, data_b_str):
 
         # ▼▼▼ 修正箇所 ▼▼▼
         # === デバッグログ 2.5: 全てのスコア一覧 (リクエストにより追加) ===
-        print("\n--- [Debug 2.5] All Calculated Scores (Threshold 0.75) ---")
+        print("\n--- [Debug 2.5] All Calculated Scores (Threshold 0.80) ---")
         print(f"{'Total':<8}{'Semantic':<10}{'Structural':<12}{'Spatial':<10}{'Class A':<25}{'Class B':<25}")
         print("-" * 85)
         if all_scores:
